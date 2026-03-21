@@ -12,8 +12,9 @@ class RouterAgent:
 - workout: if the message is about exercise, training, gym, fitness routines
 - nutrition: if the message is about food, diet, calories, macros
 - both: if the message involves both workout and nutrition
+- recovery: if the message is about recovery, rest, sleep, injury, soreness, fatigue
 
-Reply with ONLY one word: workout, nutrition, or both. Nothing else."""
+Reply with ONLY one word: workout, nutrition, both, or recovery. Nothing else."""
         print("RouterAgent created!")
 
     def run(self, user_input):
