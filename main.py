@@ -1,13 +1,13 @@
 from agent.router import RouterAgent
 from agent.workout import WorkoutAgent
 from agent.nutrition import NutritionAgent
-from agent.recovery import recoveryAgent
+from agent.recovery import RecoveryAgent
 class AgentRouter:
     def __init__(self):
         self.router = RouterAgent()
         self.workout_agent = WorkoutAgent()
         self.nutrition_agent = NutritionAgent()
-        self.recovery_agent = recoveryAgent()
+        self.recovery_agent = RecoveryAgent()
 
     def run(self, user_input):
         category = self.router.run(user_input)
