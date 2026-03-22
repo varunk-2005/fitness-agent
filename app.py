@@ -198,6 +198,7 @@ with st.sidebar:
             <li>🥗 Nutrition Agent</li>
             <li>🛌 Recovery Agent</li>
             <li>🔀 Router Agent</li>
+            <li>🧠 General Agent</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -345,7 +346,7 @@ with st.sidebar:
     - Multi-agent architecture
     - Intelligent LLM-based routing
     - Personalized fitness suggestions
-    - SQLite persistent storage
+    - In-memory session storage
     - Streamlit-based interactive UI
     """)
 
@@ -373,7 +374,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
     st.markdown("""<div class="metric-card">
         <div class="metric-title">Core Modules</div>
@@ -383,11 +384,6 @@ with col2:
     st.markdown("""<div class="metric-card">
         <div class="metric-title">Personalization</div>
         <div class="metric-value">Profile-Based</div>
-    </div>""", unsafe_allow_html=True)
-with col3:
-    st.markdown("""<div class="metric-card">
-        <div class="metric-title">Storage</div>
-        <div class="metric-value">SQLite DB</div>
     </div>""", unsafe_allow_html=True)
 
 if not st.session_state.messages:
@@ -476,6 +472,6 @@ User Query:
     st.rerun()
 
 st.markdown(
-    '<div class="footer-note">Built using Streamlit · Python · Multi-Agent Routing · SQLite</div>',
+    '<div class="footer-note">Built using Streamlit · Python · Multi-Agent Routing</div>',
     unsafe_allow_html=True
 )
