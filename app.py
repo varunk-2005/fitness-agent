@@ -8,7 +8,6 @@ from database import (
     save_recovery_log, load_recovery_logs
 )
 
-# ─── Init DB on every app start ───────────────────────────────────────────────
 init_db()
 
 st.set_page_config(
@@ -20,117 +19,181 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    .stApp {
-        background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
-        color: #f8fafc;
-    }
+    /* ── Title gradient ── */
     .app-title {
         font-size: 3rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #22c55e, #06b6d4);
+        background: linear-gradient(90deg, #16a34a, #0891b2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
         margin-bottom: 0rem;
+        line-height: 1.15;
     }
     .app-subtitle {
-        color: #94a3b8;
+        color: var(--text-color);
+        opacity: 0.6;
         font-size: 1.05rem;
         margin-bottom: 1.5rem;
     }
-    [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.96);
-        border-right: 1px solid rgba(255,255,255,0.06);
-    }
+
+    /* ── Cards ── */
     .info-card {
-        background: rgba(30, 41, 59, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.2);
         border-radius: 14px;
         padding: 16px;
         margin-bottom: 16px;
+        color: var(--text-color);
     }
     .metric-card {
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.18);
         border-radius: 16px;
         padding: 18px;
         text-align: center;
     }
-    .metric-title { color: #94a3b8; font-size: 0.9rem; }
-    .metric-value { color: #f8fafc; font-size: 1.2rem; font-weight: 700; margin-top: 6px; }
+    .metric-title { color: var(--text-color); opacity: 0.55; font-size: 0.9rem; }
+    .metric-value { color: var(--text-color); font-size: 1.2rem; font-weight: 700; margin-top: 6px; }
+
+    /* ── Welcome box ── */
     .welcome-box {
-        background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(6,182,212,0.12));
-        border: 1px solid rgba(34, 197, 94, 0.25);
-        border-radius: 18px;
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(22,163,74,0.35);
+        border-left: 4px solid #16a34a;
+        border-radius: 14px;
         padding: 28px;
         margin: 18px 0 24px 0;
+        color: var(--text-color);
     }
+    .welcome-box h2 { color: var(--text-color); margin-top: 0; }
+    .welcome-box p  { color: var(--text-color); opacity: 0.75; }
+
+    /* ── Agent badge ── */
     .agent-badge {
         display: inline-block;
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 0.78rem;
         font-weight: 700;
-        background: rgba(34,197,94,0.15);
-        color: #4ade80;
-        border: 1px solid rgba(34,197,94,0.3);
+        background: rgba(22,163,74,0.15);
+        color: #16a34a;
+        border: 1px solid rgba(22,163,74,0.35);
         margin-bottom: 8px;
     }
+
+    /* ── Chat messages ── */
     div[data-testid="stChatMessage"] {
         border-radius: 14px;
         padding: 12px;
-        background: rgba(30, 41, 59, 0.42);
-        border: 1px solid rgba(255,255,255,0.05);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.12);
     }
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        background: rgba(6, 182, 212, 0.08);
-        border: 1px solid rgba(6, 182, 212, 0.14);
+        background: rgba(8,145,178,0.08);
+        border: 1px solid rgba(8,145,178,0.2);
     }
+
+    /* ── Log entries ── */
     .log-entry {
-        background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(255,255,255,0.06);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.15);
         border-radius: 10px;
         padding: 10px 14px;
         margin-bottom: 8px;
         font-size: 0.88rem;
-        color: #cbd5e1;
+        color: var(--text-color);
     }
+
+    /* ── Footer ── */
     .footer-note {
-        color: #94a3b8;
+        color: var(--text-color);
+        opacity: 0.5;
         font-size: 0.9rem;
         text-align: center;
         margin-top: 14px;
     }
+
+    /* ── Toast popup ── */
+    .profile-toast {
+        position: fixed;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 41, 59, 0.95);
+        color: #f1f5f9;
+        border: 1px solid rgba(22,163,74,0.5);
+        border-left: 4px solid #16a34a;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        z-index: 9999;
+        white-space: nowrap;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        animation: toastIn 0.35s ease forwards, toastOut 0.4s ease 3.8s forwards;
+        pointer-events: none;
+    }
+    @keyframes toastIn {
+        from { opacity: 0; top: 40px; }
+        to   { opacity: 1; top: 56px; }
+    }
+    @keyframes toastOut {
+        from { opacity: 1; top: 56px; }
+        to   { opacity: 0; top: 40px; }
+    }
+
+    /* ── Sidebar profile reminder (after first message) ── */
+    .profile-reminder {
+        background: rgba(234,179,8,0.08);
+        border-left: 3px solid #ca8a04;
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: var(--text-color);
+        font-size: 0.85rem;
+        opacity: 0;
+        animation: fadeReminder 0.6s ease 0.3s forwards;
+    }
+    @keyframes fadeReminder {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Session State Init ───────────────────────────────────────────────────────
+# ─── Session State ─────────────────────────────────────────────────────────────
 if "agent" not in st.session_state:
     st.session_state.agent = AgentRouter()
 if "profile" not in st.session_state:
-    st.session_state.profile = load_profile()        # ← load from DB
+    st.session_state.profile = load_profile()
 if "profile_skipped" not in st.session_state:
     st.session_state.profile_skipped = False
 if "messages" not in st.session_state:
-    st.session_state.messages = load_chat_history()  # ← load from DB
+    st.session_state.messages = load_chat_history()
+if "first_msg_sent" not in st.session_state:
+    st.session_state.first_msg_sent = len(st.session_state.messages) > 0
+if "show_toast" not in st.session_state:
+    st.session_state.show_toast = False
 
 route_display = {
-    "workout": "💪 Workout Agent",
+    "workout":   "💪 Workout Agent",
     "nutrition": "🥗 Nutrition Agent",
-    "recovery": "🛌 Recovery Agent",
-    "both": "⚡ Workout + Nutrition",
-    "unknown": "❓ Unknown"
+    "recovery":  "🛌 Recovery Agent",
+    "both":      "⚡ Workout + Nutrition",
+    "general":   "🤖 Fitness Assistant",
+    "unknown":   "🤖 Fitness Assistant",
 }
 
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
     <div class="info-card">
-        <h2 style="margin-top: 0;">🏋️ Fitness AI Agent</h2>
-        <p style="margin-bottom: 10px;">
+        <h2 style="margin-top:0; color:inherit;">🏋️ Fitness AI Agent</h2>
+        <p style="margin-bottom:10px; color:inherit; opacity:0.8;">
             A multi-agent fitness assistant for workout, nutrition, and recovery guidance.
         </p>
         <strong>Available Agents:</strong>
-        <ul style="margin-top: 8px; margin-bottom: 0; padding-left: 20px;">
+        <ul style="margin-top:8px; margin-bottom:0; padding-left:20px; color:inherit;">
             <li>💪 Workout Agent</li>
             <li>🥗 Nutrition Agent</li>
             <li>🛌 Recovery Agent</li>
@@ -139,7 +202,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Profile Section ───────────────────────────────────────────────────────
     st.subheader("👤 User Profile")
 
     if st.session_state.profile:
@@ -152,14 +214,16 @@ with st.sidebar:
             "Obese"
         )
         st.markdown(f"""
-        <div class="info-card" style="border-color: rgba(34,197,94,0.28);">
-            <div style="color:#4ade80; font-weight:700; margin-bottom:10px;">✅ Active Profile</div>
+        <div class="info-card" style="border-color:rgba(22,163,74,0.4); border-left:4px solid #16a34a;">
+            <div style="color:#16a34a; font-weight:700; margin-bottom:10px;">✅ Active Profile</div>
+            <span style="color:var(--text-color);">
             <strong>Age:</strong> {p['age']}<br>
             <strong>Weight:</strong> {p['weight']} kg<br>
             <strong>Height:</strong> {p['height']} cm<br>
             <strong>Goal:</strong> {p['goal']}<br>
-            <hr style="border-color:rgba(255,255,255,0.08); margin:10px 0;">
+            <hr style="border-color:rgba(128,128,128,0.2); margin:10px 0;">
             <strong>BMI:</strong> {bmi} — {bmi_label}
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -169,24 +233,36 @@ with st.sidebar:
             st.rerun()
 
     elif not st.session_state.profile_skipped:
-        age    = st.number_input("Age",         min_value=10,  max_value=100, value=21)
-        weight = st.number_input("Weight (kg)", min_value=30,  max_value=200, value=70)
-        height = st.number_input("Height (cm)", min_value=100, max_value=230, value=170)
+        age    = st.number_input("Age",         min_value=10,  max_value=100, value=None, placeholder="e.g. 25")
+        weight = st.number_input("Weight (kg)", min_value=30,  max_value=200, value=None, placeholder="e.g. 70")
+        height = st.number_input("Height (cm)", min_value=100, max_value=230, value=None, placeholder="e.g. 170")
         goal   = st.selectbox("Primary Goal",
-                     ["Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"])
+                    [None, "Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"],
+                    format_func=lambda x: "Select a goal..." if x is None else x)
 
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Save", type="primary", use_container_width=True):
-                save_profile(age, weight, height, goal)    # ← save to DB
-                st.session_state.profile = load_profile()  # ← reload from DB
-                st.rerun()
+                if age and weight and height and goal:
+                    save_profile(age, weight, height, goal)
+                    st.session_state.profile = load_profile()
+                    st.rerun()
+                else:
+                    st.warning("Please fill all fields.")
         with col2:
             if st.button("Skip", use_container_width=True):
                 st.session_state.profile_skipped = True
                 st.rerun()
+
     else:
-        st.info("Profile not set. Responses will be general.")
+        # Sidebar reminder — only shown after first message
+        if st.session_state.first_msg_sent:
+            st.markdown("""
+            <div class="profile-reminder">
+                ⚠️ <strong>Heads up</strong> — responses are generalized.<br>
+                <span style="opacity:0.7;">Add your details above ↑ for better advice.</span>
+            </div>
+            """, unsafe_allow_html=True)
         if st.button("➕ Set Up Profile", use_container_width=True):
             st.session_state.profile_skipped = False
             st.rerun()
@@ -274,10 +350,21 @@ with st.sidebar:
     """)
 
     if st.button("🗑️ Clear Chat", use_container_width=True):
-        clear_chat_history()               # ← clear from DB
+        clear_chat_history()
         st.session_state.messages = []
         st.session_state.agent = AgentRouter()
+        st.session_state.first_msg_sent = False
+        st.session_state.show_toast = False
         st.rerun()
+
+# ─── Toast (renders before chat area, fixed position so it floats at top) ─────
+if st.session_state.show_toast:
+    st.markdown("""
+    <div class="profile-toast">
+        💡 For better responses, update your profile in the sidebar →
+    </div>
+    """, unsafe_allow_html=True)
+    st.session_state.show_toast = False  # only show once per trigger
 
 # ─── Main Area ────────────────────────────────────────────────────────────────
 st.markdown('<div class="app-title">Fitness AI Agent</div>', unsafe_allow_html=True)
@@ -290,7 +377,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown("""<div class="metric-card">
         <div class="metric-title">Core Modules</div>
-        <div class="metric-value">4 Agents</div>
+        <div class="metric-value">5 Agents</div>
     </div>""", unsafe_allow_html=True)
 with col2:
     st.markdown("""<div class="metric-card">
@@ -307,7 +394,7 @@ if not st.session_state.messages:
     st.markdown("""
     <div class="welcome-box">
         <h2 style="margin-top:0;">Welcome to your AI Fitness Assistant 🚀</h2>
-        <p style="color:#cbd5e1; font-size:1.05rem; margin-bottom:0;">
+        <p style="font-size:1.05rem; margin-bottom:0;">
             Ask anything related to training, food, recovery, or fitness planning.
             <br><br>
             <b>Examples:</b><br>
@@ -318,7 +405,7 @@ if not st.session_state.messages:
     </div>
     """, unsafe_allow_html=True)
 
-# ─── Chat History Display ─────────────────────────────────────────────────────
+# ─── Chat History ─────────────────────────────────────────────────────────────
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "assistant" and "agent_route" in message:
@@ -331,8 +418,16 @@ for message in st.session_state.messages:
 # ─── Chat Input ───────────────────────────────────────────────────────────────
 if prompt := st.chat_input("Ask me anything about fitness..."):
 
-    save_message("user", prompt, agent_route="user")   # ← save to DB
+    # First message without profile → trigger toast
+    is_first_msg = not st.session_state.first_msg_sent
+    no_profile   = not st.session_state.profile
+
+    save_message("user", prompt, agent_route="user")
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.first_msg_sent = True
+
+    if is_first_msg and no_profile:
+        st.session_state.show_toast = True
 
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -356,7 +451,7 @@ User Query:
             try:
                 reply, route = st.session_state.agent.run(enriched_prompt)
 
-                save_message("assistant", reply, agent_route=route)  # ← save to DB
+                save_message("assistant", reply, agent_route=route)
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": reply,
@@ -377,6 +472,8 @@ User Query:
                     "content": error_msg,
                     "agent_route": "unknown"
                 })
+
+    st.rerun()
 
 st.markdown(
     '<div class="footer-note">Built using Streamlit · Python · Multi-Agent Routing · SQLite</div>',
