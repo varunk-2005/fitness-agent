@@ -1,5 +1,6 @@
 import streamlit as st
 from main import AgentRouter
+
 st.set_page_config(
     page_title="Fitness AI Agent",
     page_icon="💪",
@@ -165,6 +166,15 @@ if "first_msg_sent" not in st.session_state:
 if "show_toast" not in st.session_state:
     st.session_state.show_toast = False
 
+# ─── Profile Helper ────────────────────────────────────────────────────────────
+def save_profile(age, weight, height, goal):
+    st.session_state.profile = {
+        "age": age,
+        "weight": weight,
+        "height": height,
+        "goal": goal
+    }
+
 route_display = {
     "workout":   "💪 Workout Agent",
     "nutrition": "🥗 Nutrition Agent",
@@ -197,7 +207,7 @@ with st.sidebar:
 
     if st.session_state.profile:
         p = st.session_state.profile
-        bmi = round(p['weight'] / ((p['height'] / 100) ** 2), 1)
+        bmi = round(p["weight"] / ((p["height"] / 100) ** 2), 1)
         bmi_label = (
             "Underweight" if bmi < 18.5 else
             "Normal"      if bmi < 25   else
@@ -224,19 +234,20 @@ with st.sidebar:
             st.rerun()
 
     elif not st.session_state.profile_skipped:
-        age    = st.number_input("Age",         min_value=10,  max_value=100, value=None, placeholder="e.g. 25")
-        weight = st.number_input("Weight (kg)", min_value=30,  max_value=200, value=None, placeholder="e.g. 70")
+        age = st.number_input("Age", min_value=10, max_value=100, value=None, placeholder="e.g. 25")
+        weight = st.number_input("Weight (kg)", min_value=30, max_value=200, value=None, placeholder="e.g. 70")
         height = st.number_input("Height (cm)", min_value=100, max_value=230, value=None, placeholder="e.g. 170")
-        goal   = st.selectbox("Primary Goal",
-                    [None, "Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"],
-                    format_func=lambda x: "Select a goal..." if x is None else x)
+        goal = st.selectbox(
+            "Primary Goal",
+            [None, "Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"],
+            format_func=lambda x: "Select a goal..." if x is None else x
+        )
 
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Save", type="primary", use_container_width=True):
                 if age and weight and height and goal:
                     save_profile(age, weight, height, goal)
-                    st.session_state.profile = None
                     st.rerun()
                 else:
                     st.warning("Please fill all fields.")
@@ -246,7 +257,6 @@ with st.sidebar:
                 st.rerun()
 
     else:
-        # Sidebar reminder — only shown after first message
         if st.session_state.first_msg_sent:
             st.markdown("""
             <div class="profile-reminder">
@@ -266,35 +276,50 @@ with st.sidebar:
 
     if log_tab == "Workout":
         w_type = st.text_input("Workout type (e.g. Chest, Legs)")
-        w_dur  = st.number_input("Duration (mins)", min_value=1, max_value=300, value=45)
+        w_dur = st.number_input("Duration (mins)", min_value=1, max_value=300, value=45)
         w_note = st.text_input("Notes (optional)")
         if st.button("💾 Save Workout Log", use_container_width=True):
             if "workout_logs" not in st.session_state:
                 st.session_state.workout_logs = []
             from datetime import date
-            st.session_state.workout_logs.insert(0, {"date": str(date.today()), "workout_type": w_type, "duration_minutes": w_dur, "notes": w_note})
+            st.session_state.workout_logs.insert(0, {
+                "date": str(date.today()),
+                "workout_type": w_type,
+                "duration_minutes": w_dur,
+                "notes": w_note
+            })
             st.success("Workout logged!")
 
     elif log_tab == "Nutrition":
-        n_cal  = st.number_input("Calories", min_value=0, max_value=10000, value=2000)
-        n_pro  = st.number_input("Protein (g)", min_value=0, max_value=500, value=100)
+        n_cal = st.number_input("Calories", min_value=0, max_value=10000, value=2000)
+        n_pro = st.number_input("Protein (g)", min_value=0, max_value=500, value=100)
         n_note = st.text_input("Notes (optional)")
         if st.button("💾 Save Nutrition Log", use_container_width=True):
             if "nutrition_logs" not in st.session_state:
                 st.session_state.nutrition_logs = []
             from datetime import date
-            st.session_state.nutrition_logs.insert(0, {"date": str(date.today()), "calories": n_cal, "protein_g": n_pro, "notes": n_note})
+            st.session_state.nutrition_logs.insert(0, {
+                "date": str(date.today()),
+                "calories": n_cal,
+                "protein_g": n_pro,
+                "notes": n_note
+            })
             st.success("Nutrition logged!")
 
     elif log_tab == "Recovery":
         r_sleep = st.number_input("Sleep (hrs)", min_value=0.0, max_value=24.0, value=7.0, step=0.5)
-        r_sore  = st.slider("Soreness (1=none, 5=severe)", 1, 5, 2)
-        r_note  = st.text_input("Notes (optional)")
+        r_sore = st.slider("Soreness (1=none, 5=severe)", 1, 5, 2)
+        r_note = st.text_input("Notes (optional)")
         if st.button("💾 Save Recovery Log", use_container_width=True):
             if "recovery_logs" not in st.session_state:
                 st.session_state.recovery_logs = []
             from datetime import date
-            st.session_state.recovery_logs.insert(0, {"date": str(date.today()), "sleep_hours": r_sleep, "soreness_level": r_sore, "notes": r_note})
+            st.session_state.recovery_logs.insert(0, {
+                "date": str(date.today()),
+                "sleep_hours": r_sleep,
+                "soreness_level": r_sore,
+                "notes": r_note
+            })
             st.success("Recovery logged!")
 
     st.divider()
@@ -304,7 +329,7 @@ with st.sidebar:
     view_tab = st.selectbox("View logs", ["Workout", "Nutrition", "Recovery"])
 
     if view_tab == "Workout":
-        logs = st.session_state.get('workout_logs', [])[:5]
+        logs = st.session_state.get("workout_logs", [])[:5]
         if logs:
             for log in logs:
                 st.markdown(f"""
@@ -316,7 +341,7 @@ with st.sidebar:
             st.caption("No workout logs yet.")
 
     elif view_tab == "Nutrition":
-        logs = st.session_state.get('nutrition_logs', [])[:5]
+        logs = st.session_state.get("nutrition_logs", [])[:5]
         if logs:
             for log in logs:
                 st.markdown(f"""
@@ -328,7 +353,7 @@ with st.sidebar:
             st.caption("No nutrition logs yet.")
 
     elif view_tab == "Recovery":
-        logs = st.session_state.get('recovery_logs', [])[:5]
+        logs = st.session_state.get("recovery_logs", [])[:5]
         if logs:
             for log in logs:
                 st.markdown(f"""
@@ -356,14 +381,14 @@ with st.sidebar:
         st.session_state.show_toast = False
         st.rerun()
 
-# ─── Toast (renders before chat area, fixed position so it floats at top) ─────
+# ─── Toast ────────────────────────────────────────────────────────────────────
 if st.session_state.show_toast:
     st.markdown("""
     <div class="profile-toast">
         💡 For better responses, update your profile in the sidebar →
     </div>
     """, unsafe_allow_html=True)
-    st.session_state.show_toast = False  # only show once per trigger
+    st.session_state.show_toast = False
 
 # ─── Main Area ────────────────────────────────────────────────────────────────
 st.markdown('<div class="app-title">Fitness AI Agent</div>', unsafe_allow_html=True)
@@ -412,9 +437,8 @@ for message in st.session_state.messages:
 # ─── Chat Input ───────────────────────────────────────────────────────────────
 if prompt := st.chat_input("Ask me anything about fitness..."):
 
-    # First message without profile → trigger toast
     is_first_msg = not st.session_state.first_msg_sent
-    no_profile   = not st.session_state.profile
+    no_profile = not st.session_state.profile
 
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.session_state.first_msg_sent = True
