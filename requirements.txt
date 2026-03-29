@@ -2,3 +2,7 @@ streamlit
 google-genai
 python-dotenv
 ddgs
+streamlit
+firebase-admin
+google-genai
+python-dotenv
