@@ -9,7 +9,14 @@ import hashlib
 @st.cache_resource
 def init_db():
     if not firebase_admin._apps:
-        cred = credentials.Certificate("firebase-key.json") 
+        # This tells the app to look in the Cloud Vault first!
+        if "firebase" in st.secrets:
+            firebase_credentials = dict(st.secrets["firebase"])
+            cred = credentials.Certificate(firebase_credentials)
+        else:
+            # Fallback for your local laptop
+            cred = credentials.Certificate("firebase-key.json") 
+            
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
