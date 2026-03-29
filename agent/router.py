@@ -16,6 +16,8 @@ Your job is to classify the user's message into exactly one of these categories:
 - nutrition → questions about food, diet, calories, macros, protein, meal plans, supplements
 - recovery  → questions about rest, sleep, soreness, injury, fatigue, stretching, overtraining
 - both      → message clearly involves BOTH workout and nutrition together (e.g. "give me a diet and gym plan to lose fat")
+- plan      → user wants a COMPLETE package: workout + nutrition + recovery together
+              (e.g. "give me a full weekly plan", "create a complete fitness routine", "full package for weight loss")
 - general   → conversational messages, follow-ups, short replies (e.g. "ok", "thanks", "I can't provide that", "what do you mean"), or anything unclear
 
 Rules:
@@ -24,6 +26,8 @@ Rules:
 - Only use general if the message is conversational, a follow-up, or cannot be clearly mapped to a fitness topic.
 
 Examples:
+"Give me a complete weekly fitness plan" → plan
+"Full package to lose 10kg" → plan
 "How many sets for biceps?" → workout
 "What should I eat after the gym?" → nutrition
 "I'm feeling sore and tired" → recovery
@@ -39,5 +43,5 @@ Examples:
             config={"system_instruction": self.system_prompt}
         )
         result = response.candidates[0].content.parts[0].text.strip().lower()
-        valid = {"workout", "nutrition", "recovery", "both", "general"}
+        valid = {"workout", "nutrition", "recovery", "both", "general", "plan"}  # ✅ plan added
         return result if result in valid else "general"
