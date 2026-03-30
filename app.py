@@ -176,11 +176,11 @@ else:
 
         st.divider()
         st.subheader("👤 Your Profile")
-        st.info("Your details help personalize the plans.", icon="💡")
-        st.selectbox("Your Goal", ["Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"], key="profile_goal")
-        st.number_input("Age", min_value=16, max_value=100, value=30, key="profile_age")
-        st.number_input("Height (cm)", min_value=100, max_value=250, value=170, key="profile_height")
-        st.number_input("Weight (kg)", min_value=30, max_value=200, value=70, key="profile_weight")
+        st.info("Fill these in for personalized advice.", icon="💡")
+        st.selectbox("Your Goal", ["Not Specified", "Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"], key="profile_goal", index=0)
+        st.number_input("Age", min_value=0, max_value=100, value=None, placeholder="E.g., 30", key="profile_age")
+        st.number_input("Height (cm)", min_value=0, max_value=250, value=None, placeholder="E.g., 170", key="profile_height")
+        st.number_input("Weight (kg)", min_value=0, max_value=200, value=None, placeholder="E.g., 70", key="profile_weight")
         
         st.divider()
         st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant.</p></div>""", unsafe_allow_html=True)
@@ -248,23 +248,8 @@ else:
             if message["role"] == "assistant" and "agent_route" in message:
                 route = message["agent_route"]
                 extra = "plan-badge" if route == "plan" else ""
-                st.markdown(f'<div class="agent-badge {extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-            if isinstance(message["content"], dict) and "final_plan" in message["content"]:
-                content = message["content"]
-                with st.expander("🔍 See how the agents debated this plan"):
-                    st.markdown("**Round 1: Initial Proposals**")
-                    c1, c2, c3 = st.columns(3)
-                    c1.info(f"**💪 Workout:**\n{content['round1']['workout']}")
-                    c2.success(f"**🥗 Nutrition:**\n{content['round1']['nutrition']}")
-                    c3.warning(f"**🛌 Recovery:**\n{content['round1']['recovery']}")
-                    st.markdown("**Round 2: Cross-Critique**")
-                    c4, c5, c6 = st.columns(3)
-                    c4.info(f"**💪 Workout argues:**\n{content['round2']['workout']}")
-                    c5.success(f"**🥗 Nutrition argues:**\n{content['round2']['nutrition']}")
-                    c6.warning(f"**🛌 Recovery argues:**\n{content['round2']['recovery']}")
-                st.markdown(content["final_plan"])
-            else:
-                st.markdown(message["content"])
+                st.markdown(f'<div class="agent-badge {extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)            
+            st.markdown(message["content"])
 
     if prompt := st.chat_input("Ask me anything about fitness..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -273,13 +258,17 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Consulting the agents..."):
                 try:
-                    profile_text = (
-                        f"User Profile: Goal={st.session_state.profile_goal}, "
-                        f"Age={st.session_state.profile_age}, "
-                        f"Height={st.session_state.profile_height}cm, "
-                        f"Weight={st.session_state.profile_weight}kg."
-                    )
+                    profile_parts = []
+                    if st.session_state.profile_goal and st.session_state.profile_goal != "Not Specified":
+                        profile_parts.append(f"Goal={st.session_state.profile_goal}")
+                    if st.session_state.profile_age:
+                        profile_parts.append(f"Age={st.session_state.profile_age}")
+                    if st.session_state.profile_height:
+                        profile_parts.append(f"Height={st.session_state.profile_height}cm")
+                    if st.session_state.profile_weight:
+                        profile_parts.append(f"Weight={st.session_state.profile_weight}kg")
                     
+                    profile_text = f"User Profile: {', '.join(profile_parts)}" if profile_parts else None
                     try:
                         reply, route = st.session_state.agent.run(prompt, profile_text)
                     except TypeError:
@@ -292,21 +281,7 @@ else:
                         "role": "assistant", "content": reply, "agent_route": route})
                     route_extra = "plan-badge" if route == "plan" else ""
                     st.markdown(f'<div class="agent-badge {route_extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-                    if isinstance(reply, dict) and "final_plan" in reply:
-                        with st.expander("🔍 See how the agents debated this plan"):
-                            st.markdown("**Round 1: Initial Proposals**")
-                            c1, c2, c3 = st.columns(3)
-                            c1.info(f"**💪 Workout:**\n{reply['round1']['workout']}")
-                            c2.success(f"**🥗 Nutrition:**\n{reply['round1']['nutrition']}")
-                            c3.warning(f"**🛌 Recovery:**\n{reply['round1']['recovery']}")
-                            st.markdown("**Round 2: Cross-Critique**")
-                            c4, c5, c6 = st.columns(3)
-                            c4.info(f"**💪 Workout argues:**\n{reply['round2']['workout']}")
-                            c5.success(f"**🥗 Nutrition argues:**\n{reply['round2']['nutrition']}")
-                            c6.warning(f"**🛌 Recovery argues:**\n{reply['round2']['recovery']}")
-                        st.markdown(reply["final_plan"])
-                    else:
-                        st.markdown(reply)
+                    st.markdown(reply)
                 except Exception as e:
                     error_msg = str(e).lower()
                     if "429" in error_msg or "quota" in error_msg:

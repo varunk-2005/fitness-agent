@@ -19,11 +19,7 @@ class AgentRouter:
         self.email_agent = EmailAgent()
         
         # FullPackageAgent facilitates the debate
-        self.full_package_agent = FullPackageAgent(
-            self.workout_agent,
-            self.nutrition_agent,
-            self.recovery_agent
-        )
+        self.full_package_agent = FullPackageAgent()
 
     def set_username(self, username):
         """Helper to let app.py easily pass the logged-in user to the email agent"""
@@ -58,16 +54,25 @@ class AgentRouter:
         
         reply = None
         if category == "plan":
-            reply = self.full_package_agent.build_full_plan_with_debate(full_input)
+            reply = self.full_package_agent.run(full_input)
         elif category == "workout":
             reply = self.workout_agent.run(full_input)
         elif category == "nutrition":
             reply = self.nutrition_agent.run(full_input)
         elif category == "both":
-            workout_reply = self.workout_agent.run(full_input)
-            time.sleep(10) # Add a pause to avoid hitting API rate limits
-            nutrition_reply = self.nutrition_agent.run(full_input)
-            reply = f"💪 **Workout:**\n{workout_reply}\n\n🥗 **Nutrition:**\n{nutrition_reply}"
+            # Create a temporary prompt to handle both in one call
+            both_system_prompt = """You are an expert fitness coach who specializes in creating integrated workout and nutrition plans.
+            - If a user profile is provided, use it to tailor the response.
+            - If no profile is provided, give a general-purpose plan.
+            - Structure your response with two main sections: '💪 Workout Plan' and '🥗 Nutrition Plan'.
+            """
+            print("🤖 Running 'both' route with a single API call...")
+            response = self.general_agent.client.models.generate_content(
+                model=self.general_agent.model,
+                contents=[{"role": "user", "parts": [{"text": full_input}]}],
+                config={"system_instruction": both_system_prompt}
+            )
+            reply = response.candidates[0].content.parts[0].text
         elif category == "recovery":
             reply = self.recovery_agent.run(full_input)
         else: # Should not happen, but as a fallback
