@@ -11,7 +11,7 @@ class FullPackageAgent:
         self.nutrition_agent = nutrition_agent
         self.recovery_agent = recovery_agent
         
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = get_gemini_api_key()
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
         

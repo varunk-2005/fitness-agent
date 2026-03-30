@@ -1,11 +1,12 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+from agent.config import get_gemini_api_key
 load_dotenv()
 
 class GeneralAgent:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = get_gemini_api_key()
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
         self.memory = []

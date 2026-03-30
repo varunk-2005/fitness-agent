@@ -4,19 +4,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 import streamlit as st
-
+from agent.config import get_email_credentials
 load_dotenv()
 
 class EmailAgent:
     def __init__(self, db_client): 
         self.db_client = db_client
         self.username = None       
-        try:
-            self.sender_email = st.secrets["EMAIL_ADDRESS"]
-            self.sender_password = st.secrets["EMAIL_PASSWORD"]
-        except Exception:
-            self.sender_email = os.getenv("EMAIL_ADDRESS")
-            self.sender_password = os.getenv("EMAIL_PASSWORD")
+        self.sender_email, self.sender_password = get_email_credentials()
 
     def send(self, to_email, subject, body):
         """Dispatches the email via Google's SMTP server."""
