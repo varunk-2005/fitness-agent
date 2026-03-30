@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import json
 from google import genai
 load_dotenv()
 
@@ -9,28 +10,29 @@ class GeneralAgent:
         self.model = "gemini-2.5-flash"
         self.memory = []
 
-        self.rewrite_prompt = """You are a fitness assistant's intent extractor.
+        self.system_prompt = """You are a helpful and intelligent fitness assistant that processes user messages.
 
-Look at the conversation history and the latest user message. Decide if there is a clear fitness-related intent (workout, nutrition, or recovery) that can be expressed as a clean standalone question.
+Your primary goal is to determine if the user has a clear fitness-related intent that can be passed to a specialized agent.
 
-If YES — rewrite it as a clear, standalone fitness question a routing agent can understand.
-Examples:
-  - "yeah do that" (after discussing a workout plan) -> "Create a beginner full body workout plan"
-  - "what about protein?" (after discussing weight loss) -> "How much protein should I eat to lose weight?"
-  - "I can't provide that" (after being asked for age/weight) -> "Give me a general workout plan without personal details"
-  - "something for my legs" -> "Suggest a leg day workout routine"
+Analyze the conversation history and the latest user message.
 
-If NO fitness intent can be extracted (pure conversation, off-topic, thanks, greetings, etc.) — reply with exactly: NO_INTENT
+1.  **If a clear fitness intent can be extracted**, rewrite the user's message as a standalone, actionable question. The output MUST be formatted as a JSON object:
+    `{"action": "reroute", "query": "Your rewritten, standalone question here."}`
 
-Reply with ONLY the rewritten question or NO_INTENT. Nothing else."""
+    Examples of rewriting:
+    - User says "yeah do that" after you proposed a workout plan -> `{"action": "reroute", "query": "Create a beginner full body workout plan for me."}`
+    - User says "what about protein?" after discussing weight loss -> `{"action": "reroute", "query": "How much protein should I eat per day to lose weight?"}`
+    - User says "something for my legs" -> `{"action": "reroute", "query": "Can you suggest a leg day workout routine?"}`
 
-        self.chat_prompt = """You are a warm, friendly fitness assistant. Handle conversational messages that aren't specific fitness questions.
+2.  **If there is NO clear fitness intent** (e.g., the user is just chatting, saying thanks, asking off-topic questions), you should respond as a warm, friendly fitness assistant. The output MUST be formatted as a JSON object:
+    `{"action": "chat", "reply": "Your friendly, conversational response here."}`
 
-- Greetings / thanks / acknowledgements -> respond briefly and warmly, invite them to ask a fitness question
-- Confusion or follow-ups you can't resolve -> empathize and suggest they rephrase
-- Completely off-topic -> politely say you're focused on fitness and suggest something you can help with
+    Examples of chatting:
+    - User says "thanks!" -> `{"action": "chat", "reply": "You're welcome! Let me know if you have any other fitness questions."}`
+    - User says "hello" -> `{"action": "chat", "reply": "Hi there! How can I help you with your fitness goals today?"}`
+    - User says "what is the weather like?" -> `{"action": "chat", "reply": "I'm a fitness AI, so I'm best at helping with workouts and nutrition. What can I help you with?"}`
 
-Keep it to 1-3 sentences. Be human and encouraging."""
+Reply with ONLY the JSON object. Nothing else."""
 
         print("GeneralAgent created!")
 
@@ -45,40 +47,42 @@ Keep it to 1-3 sentences. Be human and encouraging."""
     def reset(self):
         self.memory = []
 
-    def extract_intent(self, user_input):
-        history_text = ""
-        if self.memory:
-            lines = []
-            for msg in self.memory[-6:]:  # last 3 turns for context
-                role = "User" if msg["role"] == "user" else "Assistant"
-                lines.append(f"{role}: {msg['parts'][0]['text']}")
-            history_text = "\n".join(lines) + "\n"
-
-        full_input = f"{history_text}User: {user_input}"
-
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=[{"role": "user", "parts": [{"text": full_input}]}],
-            config={"system_instruction": self.rewrite_prompt}
-        )
-        result = response.candidates[0].content.parts[0].text.strip()
-        if result == "NO_INTENT":
-            return None
-        return result
-
-    def chat(self, user_input):
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=self.memory,
-            config={"system_instruction": self.chat_prompt}
-        )
-        reply = response.candidates[0].content.parts[0].text
-        self.memory.append({"role": "model", "parts": [{"text": reply}]})
-        return reply
-
     def run(self, user_input):
         self.memory.append({"role": "user", "parts": [{"text": user_input}]})
-        return self.extract_intent(user_input)
+
+        history_text = ""
+        if len(self.memory) > 1: # Only include history if it exists
+            lines = []
+            # Use all but the last message (which is the current user_input)
+            for msg in self.memory[-7:-1]: 
+                role = "User" if msg["role"] == "user" else "Assistant"
+                lines.append(f"{role}: {msg['parts'][0]['text']}")
+            history_text = "CONVERSATION HISTORY:\n" + "\n".join(lines)
+
+        full_prompt = f"{history_text}\n\nLATEST USER MESSAGE: {user_input}".strip()
+
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
+            config={"system_instruction": self.system_prompt}
+        )
+        reply_text = response.candidates[0].content.parts[0].text.strip()
+
+        try:
+            # Clean up markdown code block if present
+            if reply_text.startswith("```json"):
+                reply_text = reply_text[7:-3].strip()
+
+            parsed_reply = json.loads(reply_text)
+            action = parsed_reply.get("action")
+            
+            if action == "reroute":
+                return parsed_reply.get("query"), "reroute"
+            elif action == "chat":
+                return parsed_reply.get("reply", "Sorry, I had trouble with that request."), "general"
+        except (json.JSONDecodeError, AttributeError, KeyError):
+            # If JSON fails, assume it's a chat response that forgot to use JSON
+            return reply_text, "general"
 
     def add_assistant_reply(self, reply):
         if isinstance(reply, dict) and "final_plan" in reply:

@@ -32,47 +32,49 @@ class AgentRouter:
         self.full_package_agent.username = username
         self.email_agent.username = username
 
-    def _route_and_run(self, query):
-        category = self.router.run(query)
-
-        if category == "plan":
-            # Triggers the new Debate + Synthesis logic
-            return self.full_package_agent.build_full_plan_with_debate(query), "plan"
-            
-        elif category == "workout":
-            return self.workout_agent.run(query), category
-            
-        elif category == "nutrition":
-            return self.nutrition_agent.run(query), category
-            
-        elif category == "both":
-            # Because agents now self-save, calling run() automatically updates the DB for both!
-            workout_reply = self.workout_agent.run(query)
-            nutrition_reply = self.nutrition_agent.run(query)
-            return f"💪 **Workout:**\n{workout_reply}\n\n🥗 **Nutrition:**\n{nutrition_reply}", category
-            
-        elif category == "recovery":
-            return self.recovery_agent.run(query), category
-            
-        else:
-            return None, "general"
-
     def run(self, user_input):
-        reply, category = self._route_and_run(user_input)
-        
-        if category != "general":
-            self.general_agent.add_assistant_reply(reply)
-            return reply, category
+        # 1. Route the initial query
+        category = self.router.run(user_input)
+
+        # 2. If the category is general, let the GeneralAgent decide what to do
+        if category == "general":
+            # This single call will either rewrite the query or return a chat response
+            reply, action = self.general_agent.run(user_input)
             
-        rewritten = self.general_agent.run(user_input)
-        if rewritten:
-            reply, category = self._route_and_run(rewritten)
-            if category != "general":
+            if action == "reroute":
+                # The query was rewritten, so we re-route it and update the input
+                user_input = reply 
+                category = self.router.run(user_input)
+                # If the rewritten query is ALSO general, fallback to a safe chat response
+                if category == "general":
+                    reply = "I'm not sure how to help with that. Could you try rephrasing your request?"
+                    self.general_agent.add_assistant_reply(reply)
+                    return reply, "general"
+            else: # action == "general"
+                # It was a chat message, so we're done.
                 self.general_agent.add_assistant_reply(reply)
-                return reply, category
-                
-        reply = self.general_agent.chat(user_input)
-        return reply, "general"
+                return reply, "general"
+
+        # 3. Now we have a definitive, non-general category. Run the specialist agent.
+        reply = None
+        if category == "plan":
+            reply = self.full_package_agent.build_full_plan_with_debate(user_input)
+        elif category == "workout":
+            reply = self.workout_agent.run(user_input)
+        elif category == "nutrition":
+            reply = self.nutrition_agent.run(user_input)
+        elif category == "both":
+            workout_reply = self.workout_agent.run(user_input)
+            nutrition_reply = self.nutrition_agent.run(user_input)
+            reply = f"💪 **Workout:**\n{workout_reply}\n\n🥗 **Nutrition:**\n{nutrition_reply}"
+        elif category == "recovery":
+            reply = self.recovery_agent.run(user_input)
+        else: # Should not happen, but as a fallback
+            reply = "I seem to be stuck! Please try asking in a different way."
+            category = "general"
+
+        self.general_agent.add_assistant_reply(reply)
+        return reply, category
 
 if __name__ == "__main__":
     agent = AgentRouter() 
