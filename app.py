@@ -105,7 +105,7 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 if "agent" not in st.session_state:
-    st.session_state.agent = AgentRouter(db_client=db)
+    st.session_state.agent = None  # Only initialized after login
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_email_input" not in st.session_state:
@@ -138,6 +138,7 @@ if not st.session_state.logged_in:
                     if doc.to_dict().get("password") == hash_password(login_pass):
                         st.session_state.username = login_user
                         st.session_state.logged_in = True
+                        st.session_state.agent = AgentRouter(db_client=db)
                         st.success("Login successful!")
                         st.rerun()
                     else:
@@ -168,6 +169,8 @@ if not st.session_state.logged_in:
 
 # ─── 4. MAIN APP ──────────────────────────────────────────────────────────────
 else:
+    if st.session_state.agent is None:
+        st.session_state.agent = AgentRouter(db_client=db)
     st.session_state.agent.set_username(st.session_state.username)
 
     with st.sidebar:                                          
