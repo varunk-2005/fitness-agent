@@ -65,7 +65,7 @@ class AgentRouter:
             reply = self.nutrition_agent.run(full_input)
         elif category == "both":
             workout_reply = self.workout_agent.run(full_input)
-            time.sleep(5) # Add a pause to avoid hitting API rate limits
+            time.sleep(10) # Add a pause to avoid hitting API rate limits
             nutrition_reply = self.nutrition_agent.run(full_input)
             reply = f"💪 **Workout:**\n{workout_reply}\n\n🥗 **Nutrition:**\n{nutrition_reply}"
         elif category == "recovery":
