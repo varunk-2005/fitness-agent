@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 load_dotenv()
 class WorkoutAgent:
-    def __init__(self, db_client): 
-        self.db_client = db_client
+    def __init__(self): 
         self._api_key = None  # lazy init
         self.model = "gemini-2.5-flash"
         self.memory = []

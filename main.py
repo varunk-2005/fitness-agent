@@ -7,19 +7,17 @@ from agent.email_agent import EmailAgent
 from agent.full_package_agent import FullPackageAgent # ⬅️ Replaced PlannerAgent
 
 class AgentRouter:
-    def __init__(self, db_client=None): # ⬅️ Now accepts the DB connection
+    def __init__(self):
         self.router = RouterAgent()
         
-        # Pass db_client to core agents so they can save themselves to Firestore
-        self.workout_agent = WorkoutAgent(db_client)
-        self.nutrition_agent = NutritionAgent(db_client)
-        self.recovery_agent = RecoveryAgent(db_client)
+        self.workout_agent = WorkoutAgent()
+        self.nutrition_agent = NutritionAgent()
+        self.recovery_agent = RecoveryAgent()
         self.general_agent = GeneralAgent()
         
-        # EmailAgent is now standalone
-        self.email_agent = EmailAgent(db_client)
+        self.email_agent = EmailAgent()
         
-        # FullPackageAgent facilitates the debate (No EmailAgent passed in!)
+        # FullPackageAgent facilitates the debate
         self.full_package_agent = FullPackageAgent(
             self.workout_agent,
             self.nutrition_agent,
@@ -77,8 +75,7 @@ class AgentRouter:
         return reply, "general"
 
 if __name__ == "__main__":
-    # If running locally for testing, we can pass None for the DB
-    agent = AgentRouter(db_client=None) 
+    agent = AgentRouter() 
     while True:
         user_input = input("You: ").strip()
         if not user_input:

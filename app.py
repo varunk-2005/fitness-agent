@@ -1,6 +1,6 @@
 import streamlit as st
-import firebase_admin
-from firebase_admin import credentials, firestore
+import json
+import os
 from datetime import date
 import hashlib
 import traceback
@@ -13,48 +13,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── 2. FIREBASE SETUP ────────────────────────────────────────────────────────
-@st.cache_resource
-def init_db():
-    if not firebase_admin._apps:
-        try:
-            # Pull each Firebase field individually — never use dict() on st.secrets
-            fb = st.secrets["firebase"]
-            cred_dict = {
-                "type":                        str(fb["type"]),
-                "project_id":                  str(fb["project_id"]),
-                "private_key_id":              str(fb["private_key_id"]),
-                "private_key":                 str(fb["private_key"]).replace("\\n", "\n").replace("\r", "").strip('"').strip("'"),
-                "client_email":                str(fb["client_email"]),
-                "client_id":                   str(fb["client_id"]),
-                "auth_uri":                    str(fb["auth_uri"]),
-                "token_uri":                   str(fb["token_uri"]),
-                "auth_provider_x509_cert_url": str(fb["auth_provider_x509_cert_url"]),
-                "client_x509_cert_url":        str(fb["client_x509_cert_url"]),
-                "universe_domain":             "googleapis.com",
-            }
-            firebase_admin.initialize_app(credentials.Certificate(cred_dict))
-        except (KeyError, FileNotFoundError):
-            try:
-                firebase_admin.initialize_app(credentials.Certificate("firebase-key.json"))
-            except Exception as e:
-                st.error(f"❌ Firebase init failed (no secrets and no local key): {e}")
-                st.stop()
-        except Exception as e:
-            st.error(f"❌ Firebase init failed:\n\n```\n{traceback.format_exc()}\n```")
-            st.stop()
-    try:
-        return firestore.client()
-    except Exception as e:
-        st.error(f"❌ Firestore client error: {e}")
-        st.stop()
+# ─── 2. LOCAL DB SETUP ────────────────────────────────────────────────────────
+USERS_FILE = "users.json"
 
-db = init_db()
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return {}
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
 
 # ─── 3. UTILITIES ─────────────────────────────────────────────────────────────
 def make_agent():
     from main import AgentRouter
-    return AgentRouter(db_client=db)
+    return AgentRouter()
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -131,9 +109,9 @@ if not st.session_state.logged_in:
             if login_user and login_pass:
                 with st.spinner("Logging in..."):
                     try:
-                        doc = db.collection("users").document(login_user).get()
-                        if doc.exists:
-                            if doc.to_dict().get("password") == hash_password(login_pass):
+                        users = load_users()
+                        if login_user in users:
+                            if users[login_user].get("password") == hash_password(login_pass):
                                 with st.spinner("Setting up your agents..."):
                                     try:
                                         st.session_state.agent = make_agent()
@@ -161,13 +139,16 @@ if not st.session_state.logged_in:
             if signup_user and signup_pass:
                 with st.spinner("Creating account..."):
                     try:
-                        ref = db.collection("users").document(signup_user)
-                        if ref.get().exists:
+                        users = load_users()
+                        if signup_user in users:
                             st.error("❌ Username already exists!")
                         else:
-                            ref.set({"password": hash_password(signup_pass),
-                                     "email": signup_email,
-                                     "created_at": str(date.today())})
+                            users[signup_user] = {
+                                "password": hash_password(signup_pass),
+                                "email": signup_email,
+                                "created_at": str(date.today())
+                            }
+                            save_users(users)
                             st.success("✅ Account created! You can now log in.")
                     except Exception as e:
                         st.error(f"❌ Sign up error:\n\n```\n{traceback.format_exc()}\n```")

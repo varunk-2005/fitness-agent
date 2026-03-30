@@ -6,8 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class EmailAgent:
-    def __init__(self, db_client): 
-        self.db_client = db_client
+    def __init__(self): 
         self.username = None
         # Credentials fetched lazily — not at import/init time
 

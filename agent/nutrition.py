@@ -4,8 +4,7 @@ from google import genai
 load_dotenv()
 
 class NutritionAgent:
-    def __init__(self, db_client): 
-        self.db_client = db_client
+    def __init__(self): 
         self.model = "gemini-2.5-flash"
         self.memory = []
         self.system_prompt = """You are an expert nutritionist specializing in personalized diet planning.

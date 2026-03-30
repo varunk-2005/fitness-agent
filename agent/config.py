@@ -6,10 +6,15 @@ def get_gemini_api_key():
         import streamlit as st
         key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("gemini_api_key") or st.secrets.get("GOOGLE_API_KEY")
         if key:
-            return key
+            return str(key).strip()
     except Exception:
         pass
-    return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    
+    env_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if env_key:
+        return str(env_key).strip()
+        
+    raise ValueError("GEMINI_API_KEY is missing! Please set it in your Streamlit Cloud Secrets dashboard.")
 
 def get_email_credentials():
     try:
