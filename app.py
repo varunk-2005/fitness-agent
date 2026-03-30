@@ -64,6 +64,18 @@ def init_db():
 
 db = init_db()
 
+# ─── 2b. GEMINI KEY CHECK ─────────────────────────────────────────────────────
+from agent.config import get_gemini_api_key as _get_key
+if not _get_key():
+    st.error(
+        "❌ **Gemini API key not found.**\n\n"
+        "Go to **App settings → Secrets** on Streamlit Cloud and add:\n"
+        "```toml\n"
+        "GEMINI_API_KEY = \"your-key-here\"\n"
+        "```"
+    )
+    st.stop()
+
 # ─── 3. UTILITIES ─────────────────────────────────────────────────────────────
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
