@@ -10,10 +10,18 @@ import hashlib
 def init_db():
     if not firebase_admin._apps:
         try:
+            # Attempt to load from Streamlit Secrets (Cloud)
             firebase_credentials = dict(st.secrets["firebase"])
+            
+            # Bulletproof fix: Ensure newlines in the private key are parsed correctly
+            if "\\n" in firebase_credentials.get("private_key", ""):
+                firebase_credentials["private_key"] = firebase_credentials["private_key"].replace("\\n", "\n")
+                
             cred = credentials.Certificate(firebase_credentials)
         except Exception:
+            # Fallback for Local Development
             cred = credentials.Certificate("firebase-key.json")
+            
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
@@ -159,12 +167,9 @@ else:
         st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant. Ask anything about workouts, nutrition, or recovery.</p></div>""", unsafe_allow_html=True)
 
         st.divider()
-        st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant. Ask anything about workouts, nutrition, or recovery.</p></div>""", unsafe_allow_html=True)
-
-        st.divider()
 
         # ─── EMAIL YOURSELF SECTION ───────────────────────────────────────────
-        st.subheader("📧 Email Yourself")                    # ← indented inside sidebar
+        st.subheader("📧 Email Yourself")                    
 
         if not st.session_state.show_email_input:
             if st.button("📧 Email Yourself", use_container_width=True):
@@ -187,7 +192,7 @@ else:
                         st.warning("Have a conversation first!")
                     else:
                         body = build_email_body(latest, st.session_state.username)
-                        # ✅ calls email_agent.send() from EmailAgent class
+                        # calls email_agent.send() from EmailAgent class
                         ok, msg = st.session_state.agent.email_agent.send(
                             email_input,
                             "Fitness Update 🏋️",
@@ -209,7 +214,7 @@ else:
             st.session_state.messages = []
             st.session_state.agent = AgentRouter()
             st.rerun()
-                                                              # ← sidebar closes here
+                                                                      
    # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
     st.markdown('<div class="app-title">Fitness AI Agent</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">Your personalized multi-agent assistant.</div>', unsafe_allow_html=True)
@@ -261,7 +266,6 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Consulting the agents..."):
                 try:
-                    # Remember to pass the username to the router!
                     reply, route = st.session_state.agent.run(prompt) 
                     
                     st.session_state.messages.append({
@@ -298,4 +302,3 @@ else:
                         st.warning("⏳ API speed limit reached. Please wait 60 seconds and try again.")
                     else:
                         st.error(f"API Error: {e}")
-        st.rerun()
