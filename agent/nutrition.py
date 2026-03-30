@@ -1,13 +1,11 @@
 import os
 from dotenv import load_dotenv
 from google import genai
-from agent.config import get_gemini_api_key
 load_dotenv()
+
 class NutritionAgent:
     def __init__(self, db_client): 
         self.db_client = db_client
-        api_key = get_gemini_api_key()
-        self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
         self.memory = []
         self.system_prompt = """You are an expert nutritionist specializing in personalized diet planning.
@@ -49,7 +47,15 @@ Calories: ~[X] kcal/day | Protein: ~[X]g/day | Water: ~[X]L/day
  
 Keep total response under 280 words. Show the numbers — they matter.
 """
-        print("Memory cleared!")
+        print("NutritionAgent created!")
+
+    @property
+    def client(self):
+        if not hasattr(self, "_client"):
+            from agent.config import get_gemini_api_key
+            self._client = genai.Client(api_key=get_gemini_api_key())
+        return self._client
+
     def run(self, user_input):
         self.memory.append({"role": "user", "parts": [{"text": user_input}]})
         response = self.client.models.generate_content(
