@@ -40,7 +40,7 @@ Keep total response under 250 words. Be specific, not generic.
     def client(self):
         if not hasattr(self, "_client"):
             from agent.config import get_gemini_api_key
-            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+            self._client = genai.Client(api_key=get_gemini_api_key())
         return self._client
 
 

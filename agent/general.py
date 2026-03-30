@@ -38,7 +38,7 @@ Keep it to 1-3 sentences. Be human and encouraging."""
     def client(self):
         if not hasattr(self, "_client"):
             from agent.config import get_gemini_api_key
-            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+            self._client = genai.Client(api_key=get_gemini_api_key())
         return self._client
 
 
@@ -81,4 +81,8 @@ Keep it to 1-3 sentences. Be human and encouraging."""
         return self.extract_intent(user_input)
 
     def add_assistant_reply(self, reply):
-        self.memory.append({"role": "model", "parts": [{"text": reply}]})
+        if isinstance(reply, dict) and "final_plan" in reply:
+            text_reply = reply["final_plan"]
+        else:
+            text_reply = str(reply)
+        self.memory.append({"role": "model", "parts": [{"text": text_reply}]})

@@ -4,18 +4,9 @@ def get_gemini_api_key():
     # Try each secret individually — never use 'in' operator on st.secrets
     try:
         import streamlit as st
-        try:
-            return st.secrets["GEMINI_API_KEY"]
-        except Exception:
-            pass
-        try:
-            return st.secrets["gemini_api_key"]
-        except Exception:
-            pass
-        try:
-            return st.secrets["GOOGLE_API_KEY"]
-        except Exception:
-            pass
+        key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("gemini_api_key") or st.secrets.get("GOOGLE_API_KEY")
+        if key:
+            return key
     except Exception:
         pass
     return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -23,15 +14,8 @@ def get_gemini_api_key():
 def get_email_credentials():
     try:
         import streamlit as st
-        user, pw = None, None
-        try:
-            user = st.secrets["GMAIL_USER"]
-        except Exception:
-            pass
-        try:
-            pw = st.secrets["GMAIL_APP_PASSWORD"]
-        except Exception:
-            pass
+        user = st.secrets.get("GMAIL_USER")
+        pw = st.secrets.get("GMAIL_APP_PASSWORD")
         if user and pw:
             return user, pw
     except Exception:

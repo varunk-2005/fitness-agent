@@ -34,8 +34,7 @@ def init_db():
                 "universe_domain":             "googleapis.com",
             }
             firebase_admin.initialize_app(credentials.Certificate(cred_dict))
-        except KeyError:
-            # No [firebase] secret — try local file
+        except o [firebase] secret — try local file
             try:
                 firebase_admin.initialize_app(credentials.Certificate("firebase-key.json"))
             except Exception as e:
@@ -77,8 +76,12 @@ def build_email_body(messages, username):
         "both":      "⚡ WORKOUT + NUTRITION",
         "plan":      "📅 FULL FITNESS PLAN",
         "general":   "🤖 GENERAL ADVICE",
-    }
-    parts = [f"{label_map.get(r, r.upper())}\n{c}" for r, c in messages.items()]
+    }arts = []
+   :
+        if isinstance(c, dict) and "final_plan" in c:
+            parts.append(f"{label_map.get(r, r.upper())}\n{c['final_plan']}")
+        else:
+            parts.append(f"{label_map.get(r, r.upper())}\n{c}")
     body = f"Hi {username}!\n\nHere's your fitness update:\n\n"
     body += "\n\n---\n\n".join(parts)
     body += "\n\n---\nYours truly,\nFitness App 💪"

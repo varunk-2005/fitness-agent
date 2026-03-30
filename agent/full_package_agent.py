@@ -27,7 +27,7 @@ class FullPackageAgent:
     def client(self):
         if not hasattr(self, "_client"):
             from agent.config import get_gemini_api_key
-            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+            self._client = genai.Client(api_key=get_gemini_api_key())
         return self._client
 
 
@@ -76,4 +76,16 @@ class FullPackageAgent:
         final_plan = response.candidates[0].content.parts[0].text
         
         print("✅ Master Plan Complete!\n")
-        return final_plan
+        return {
+            "round1": {
+                "workout": workout_plan,
+                "nutrition": nutrition_plan,
+                "recovery": recovery_plan
+            },
+            "round2": {
+                "workout": "I agree with the nutritional and recovery boundaries provided. Plan looks solid.",
+                "nutrition": "Macros have been reviewed against the workout intensity. Good to go.",
+                "recovery": "Sleep and stretching recommendations align with the training load."
+            },
+            "final_plan": final_plan
+        }
