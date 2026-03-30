@@ -11,7 +11,7 @@ class FullPackageAgent:
         self.nutrition_agent = nutrition_agent
         self.recovery_agent = recovery_agent
         
-        self.client = genai.Client(api_key=get_gemini_api_key())
+        self._api_key = None  # lazy init
         self.model = "gemini-2.5-flash"
         
         self.system_prompt = """You are the Head Fitness Coach orchestrating a complete lifestyle plan. 
@@ -22,6 +22,14 @@ class FullPackageAgent:
         2. Identify and resolve any conflicts.
         3. Synthesize the proposals into ONE cohesive, easy-to-read Master Plan.
         """
+
+    @property
+    def client(self):
+        if not hasattr(self, "_client"):
+            from agent.config import get_gemini_api_key
+            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+        return self._client
+
 
     def build_full_plan_with_debate(self, query):
         print("\n📢 Head Coach: 'Team, we have a new client request. Let's get to work.'")

@@ -1,13 +1,11 @@
 import os
 from dotenv import load_dotenv
 from google import genai
-from agent.config import get_gemini_api_key
 load_dotenv()
 
 class RouterAgent:
     def __init__(self):
-        api_key = get_gemini_api_key()
-        self.client = genai.Client(api_key=api_key)
+        self._api_key = None  # lazy init
         self.model = "gemini-2.5-flash"
         self.system_prompt = """You are a routing agent for a fitness assistant app.
 
@@ -36,6 +34,14 @@ Examples:
 "ok", "thanks", "I can't provide that", "what is the capital of France?" → general
 """
         print("RouterAgent created!")
+
+    @property
+    def client(self):
+        if not hasattr(self, "_client"):
+            from agent.config import get_gemini_api_key
+            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+        return self._client
+
 
     def run(self, user_input):
         response = self.client.models.generate_content(

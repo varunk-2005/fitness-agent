@@ -1,13 +1,11 @@
 import os
 from dotenv import load_dotenv
 from google import genai
-from agent.config import get_gemini_api_key
 load_dotenv()
 
 class GeneralAgent:
     def __init__(self):
-        api_key = get_gemini_api_key()
-        self.client = genai.Client(api_key=api_key)
+        self._api_key = None  # lazy init
         self.model = "gemini-2.5-flash"
         self.memory = []
 
@@ -35,6 +33,14 @@ Reply with ONLY the rewritten question or NO_INTENT. Nothing else."""
 Keep it to 1-3 sentences. Be human and encouraging."""
 
         print("GeneralAgent created!")
+
+    @property
+    def client(self):
+        if not hasattr(self, "_client"):
+            from agent.config import get_gemini_api_key
+            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+        return self._client
+
 
     def reset(self):
         self.memory = []

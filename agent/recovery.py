@@ -1,14 +1,12 @@
 import os
 from dotenv import load_dotenv
 from google import genai
-from agent.config import get_gemini_api_key
 load_dotenv()
 
 class RecoveryAgent:
     def __init__(self, db_client): 
         self.db_client = db_client
-        api_key = get_gemini_api_key()
-        self.client = genai.Client(api_key=api_key)
+        self._api_key = None  # lazy init
         self.model = "gemini-2.5-flash"
         self.memory = []
         self.system_prompt = """You are an expert recovery and sports rehabilitation specialist.
@@ -41,6 +39,14 @@ Always structure your response in this exact format:
 Keep total response under 250 words. Be specific and reassuring.
 """
         print("RecoveryAgent created!")
+
+    @property
+    def client(self):
+        if not hasattr(self, "_client"):
+            from agent.config import get_gemini_api_key
+            self._client = __import__("google.genai", fromlist=["genai"]).Client(api_key=get_gemini_api_key())
+        return self._client
+
 
     def reset(self):
         self.memory = []
