@@ -143,14 +143,20 @@ if not st.session_state.logged_in:
 
 # ─── 4. MAIN APP ──────────────────────────────────────────────────────────────
 else:
-    with st.sidebar:                                          # ← sidebar opens here
+    st.session_state.agent.set_username(st.session_state.username)
+
+    with st.sidebar:                                          
         st.success(f"👤 Logged in as: **{st.session_state.username}**")
+        
         if st.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.username = None
             st.session_state.messages = []
             st.session_state.show_email_input = False
             st.rerun()
+
+        st.divider()
+        st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant. Ask anything about workouts, nutrition, or recovery.</p></div>""", unsafe_allow_html=True)
 
         st.divider()
         st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant. Ask anything about workouts, nutrition, or recovery.</p></div>""", unsafe_allow_html=True)
