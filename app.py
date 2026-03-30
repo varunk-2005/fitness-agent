@@ -24,7 +24,7 @@ def init_db():
                 "type":                        str(fb["type"]),
                 "project_id":                  str(fb["project_id"]),
                 "private_key_id":              str(fb["private_key_id"]),
-                "private_key":                 str(fb["private_key"]).replace("\\n", "\n"),
+                "private_key":                 str(fb["private_key"]).replace("\\n", "\n").replace("\r", "").strip('"').strip("'"),
                 "client_email":                str(fb["client_email"]),
                 "client_id":                   str(fb["client_id"]),
                 "auth_uri":                    str(fb["auth_uri"]),
@@ -34,7 +34,7 @@ def init_db():
                 "universe_domain":             "googleapis.com",
             }
             firebase_admin.initialize_app(credentials.Certificate(cred_dict))
-        except o [firebase] secret — try local file
+        except (KeyError, FileNotFoundError):
             try:
                 firebase_admin.initialize_app(credentials.Certificate("firebase-key.json"))
             except Exception as e:
@@ -76,8 +76,9 @@ def build_email_body(messages, username):
         "both":      "⚡ WORKOUT + NUTRITION",
         "plan":      "📅 FULL FITNESS PLAN",
         "general":   "🤖 GENERAL ADVICE",
-    }arts = []
-   :
+    }
+    parts = []
+    for r, c in messages.items():
         if isinstance(c, dict) and "final_plan" in c:
             parts.append(f"{label_map.get(r, r.upper())}\n{c['final_plan']}")
         else:
