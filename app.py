@@ -4,46 +4,9 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import date
 import hashlib
+import traceback
 
-# ─── 1. FIREBASE SETUP ────────────────────────────────────────────────────────
-@st.cache_resource
-def init_db():
-    if not firebase_admin._apps:
-        try:
-            # Attempt to load from Streamlit Secrets (Cloud)
-            firebase_credentials = dict(st.secrets["firebase"])
-
-            # Fix 1: Replace escaped \n with real newlines (TOML stores them as literals)
-            private_key = firebase_credentials.get("private_key", "")
-            if "\\n" in private_key:
-                private_key = private_key.replace("\\n", "\n")
-
-            # Fix 2: Strip any accidental whitespace/quotes around the key block
-            private_key = private_key.strip().strip('"').strip("'")
-
-            # Fix 3: Ensure the key starts and ends correctly
-            if not private_key.startswith("-----BEGIN PRIVATE KEY-----"):
-                raise ValueError("private_key does not look valid — check secrets.toml formatting")
-
-            firebase_credentials["private_key"] = private_key
-            cred = credentials.Certificate(firebase_credentials)
-
-        except FileNotFoundError:
-            st.error("❌ Firebase key file not found. Add secrets or place firebase-key.json locally.")
-            st.stop()
-        except Exception as e:
-            # Fallback for Local Development
-            try:
-                cred = credentials.Certificate("firebase-key.json")
-            except Exception as local_err:
-                st.error(f"❌ Firebase init failed.\nCloud error: {e}\nLocal error: {local_err}")
-                st.stop()
-
-        firebase_admin.initialize_app(cred)
-    return firestore.client()
-
-db = init_db()
-
+# ─── 1. PAGE CONFIG (must be first) ───────────────────────────────────────────
 st.set_page_config(
     page_title="Fitness AI Agent",
     page_icon="💪",
@@ -51,11 +14,60 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── UTILITY: PASSWORD HASHING ───────────────────────────────────────────────
+# ─── 2. FIREBASE SETUP ────────────────────────────────────────────────────────
+@st.cache_resource
+def init_db():
+    if not firebase_admin._apps:
+        # ── Try Streamlit Cloud secrets first ──
+        if "firebase" in st.secrets:
+            try:
+                firebase_credentials = dict(st.secrets["firebase"])
+
+                # Ensure private_key has real newlines (TOML escapes them)
+                pk = firebase_credentials.get("private_key", "")
+                pk = pk.replace("\\n", "\n").strip().strip('"').strip("'")
+                firebase_credentials["private_key"] = pk
+
+                # Debug info shown in sidebar (remove after fixing)
+                st.session_state["_debug_pk_start"] = pk[:50]
+                st.session_state["_debug_pk_end"]   = pk[-30:]
+                st.session_state["_debug_keys"]     = list(firebase_credentials.keys())
+
+                cred = credentials.Certificate(firebase_credentials)
+                firebase_admin.initialize_app(cred)
+                st.session_state["_debug_firebase"] = "✅ Initialized from Streamlit secrets"
+
+            except Exception as e:
+                st.session_state["_debug_firebase"] = f"❌ Secrets failed: {e}\n{traceback.format_exc()}"
+                st.error(f"❌ Firebase (cloud secrets) failed:\n\n```\n{traceback.format_exc()}\n```")
+                st.stop()
+
+        # ── Fallback: local firebase-key.json ──
+        else:
+            try:
+                cred = credentials.Certificate("firebase-key.json")
+                firebase_admin.initialize_app(cred)
+                st.session_state["_debug_firebase"] = "✅ Initialized from local firebase-key.json"
+            except Exception as e:
+                st.session_state["_debug_firebase"] = f"❌ Local key failed: {e}"
+                st.error(f"❌ Firebase (local key) failed: {e}")
+                st.stop()
+
+    try:
+        client = firestore.client()
+        st.session_state["_debug_firestore"] = "✅ Firestore client created"
+        return client
+    except Exception as e:
+        st.session_state["_debug_firestore"] = f"❌ Firestore client failed: {e}"
+        st.error(f"❌ Firestore client error: {e}")
+        st.stop()
+
+db = init_db()
+
+# ─── 3. UTILITIES ─────────────────────────────────────────────────────────────
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ─── UTILITY: GRAB LATEST MESSAGE FROM EACH AGENT ────────────────────────────
 def get_latest_agent_messages():
     found = {}
     for msg in reversed(st.session_state.messages):
@@ -65,7 +77,6 @@ def get_latest_agent_messages():
                 found[route] = msg["content"]
     return found
 
-# ─── UTILITY: BUILD EMAIL BODY ────────────────────────────────────────────────
 def build_email_body(messages, username):
     parts = []
     label_map = {
@@ -79,13 +90,12 @@ def build_email_body(messages, username):
     for route, content in messages.items():
         label = label_map.get(route, route.upper())
         parts.append(f"{label}\n{content}")
-
     body  = f"Hi {username}!\n\nHere's your fitness update:\n\n"
     body += "\n\n---\n\n".join(parts)
     body += "\n\n---\nYours truly,\nFitness App 💪"
     return body
 
-# ─── UI STYLING ──────────────────────────────────────────────────────────────
+# ─── 4. STYLING ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
     .app-title { font-size: 3rem; font-weight: 800; background: linear-gradient(90deg, #16a34a, #0891b2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0rem; line-height: 1.15; }
@@ -99,7 +109,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── 2. SESSION STATE ─────────────────────────────────────────────────────────
+# ─── 5. SESSION STATE ─────────────────────────────────────────────────────────
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
@@ -120,10 +130,21 @@ route_display = {
     "plan":      "🧠 Full Plan — All Agents",
 }
 
-# ─── 3. AUTHENTICATION ────────────────────────────────────────────────────────
+# ─── 6. AUTH ──────────────────────────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.markdown('<div class="app-title">Welcome to Fitness AI</div>', unsafe_allow_html=True)
     st.write("Please log in or create an account to continue.")
+
+    # ── DEBUG PANEL (shows on cloud so you can see what's happening) ──
+    with st.expander("🔧 Debug Info (remove after fixing)", expanded=False):
+        st.write("**Firebase status:**", st.session_state.get("_debug_firebase", "not set"))
+        st.write("**Firestore status:**", st.session_state.get("_debug_firestore", "not set"))
+        st.write("**Secrets keys found:**", st.session_state.get("_debug_keys", "not set"))
+        st.write("**Private key start:**", st.session_state.get("_debug_pk_start", "not set"))
+        st.write("**Private key end:**", st.session_state.get("_debug_pk_end", "not set"))
+        st.write("**firebase in secrets:**", "firebase" in st.secrets)
+        if "firebase" in st.secrets:
+            st.write("**secret keys:**", list(st.secrets["firebase"].keys()))
 
     tab1, tab2 = st.tabs(["🔒 Login", "📝 Sign Up"])
 
@@ -132,19 +153,28 @@ if not st.session_state.logged_in:
         login_pass = st.text_input("Password", type="password", key="login_pass")
         if st.button("Login", type="primary"):
             if login_user and login_pass:
-                user_ref = db.collection("users").document(login_user)
-                doc = user_ref.get()
-                if doc.exists:
-                    if doc.to_dict().get("password") == hash_password(login_pass):
-                        st.session_state.username = login_user
-                        st.session_state.logged_in = True
-                        st.session_state.agent = AgentRouter(db_client=db)
-                        st.success("Login successful!")
-                        st.rerun()
-                    else:
-                        st.error("Incorrect password.")
-                else:
-                    st.error("Username not found. Please sign up.")
+                with st.spinner("Logging in..."):
+                    try:
+                        user_ref = db.collection("users").document(login_user)
+                        doc = user_ref.get()
+                        if doc.exists:
+                            if doc.to_dict().get("password") == hash_password(login_pass):
+                                with st.spinner("Setting up your agents..."):
+                                    try:
+                                        st.session_state.agent = AgentRouter(db_client=db)
+                                    except Exception as e:
+                                        st.error(f"❌ Agent setup failed: {e}\n\n```\n{traceback.format_exc()}\n```")
+                                        st.stop()
+                                st.session_state.username = login_user
+                                st.session_state.logged_in = True
+                                st.success("✅ Login successful!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Incorrect password.")
+                        else:
+                            st.error("❌ Username not found. Please sign up.")
+                    except Exception as e:
+                        st.error(f"❌ Login error: {e}\n\n```\n{traceback.format_exc()}\n```")
             else:
                 st.warning("Please fill in both fields.")
 
@@ -154,55 +184,64 @@ if not st.session_state.logged_in:
         signup_email = st.text_input("Your Email (for future notifications)", key="signup_email")
         if st.button("Create Account"):
             if signup_user and signup_pass:
-                user_ref = db.collection("users").document(signup_user)
-                if user_ref.get().exists:
-                    st.error("Username already exists! Please choose another one.")
-                else:
-                    user_ref.set({
-                        "password": hash_password(signup_pass),
-                        "email": signup_email,
-                        "created_at": str(date.today())
-                    })
-                    st.success("Account created! You can now log in.")
+                with st.spinner("Creating account..."):
+                    try:
+                        user_ref = db.collection("users").document(signup_user)
+                        if user_ref.get().exists:
+                            st.error("❌ Username already exists! Please choose another one.")
+                        else:
+                            user_ref.set({
+                                "password": hash_password(signup_pass),
+                                "email": signup_email,
+                                "created_at": str(date.today())
+                            })
+                            st.success("✅ Account created! You can now log in.")
+                    except Exception as e:
+                        st.error(f"❌ Sign up error: {e}\n\n```\n{traceback.format_exc()}\n```")
             else:
                 st.warning("Please fill in username and password.")
 
-# ─── 4. MAIN APP ──────────────────────────────────────────────────────────────
+# ─── 7. MAIN APP ──────────────────────────────────────────────────────────────
 else:
     if st.session_state.agent is None:
-        st.session_state.agent = AgentRouter(db_client=db)
-    st.session_state.agent.set_username(st.session_state.username)
+        with st.spinner("Setting up agents..."):
+            try:
+                st.session_state.agent = AgentRouter(db_client=db)
+            except Exception as e:
+                st.error(f"❌ Agent init failed: {e}\n\n```\n{traceback.format_exc()}\n```")
+                st.stop()
 
-    with st.sidebar:                                          
+    try:
+        st.session_state.agent.set_username(st.session_state.username)
+    except Exception as e:
+        st.error(f"❌ set_username failed: {e}")
+        st.stop()
+
+    with st.sidebar:
         st.success(f"👤 Logged in as: **{st.session_state.username}**")
-        
+
         if st.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.username = None
+            st.session_state.agent = None
             st.session_state.messages = []
             st.session_state.show_email_input = False
             st.rerun()
 
         st.divider()
         st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant. Ask anything about workouts, nutrition, or recovery.</p></div>""", unsafe_allow_html=True)
-
         st.divider()
 
-        # ─── EMAIL YOURSELF SECTION ───────────────────────────────────────────
-        st.subheader("📧 Email Yourself")                    
-
+        st.subheader("📧 Email Yourself")
         if not st.session_state.show_email_input:
             if st.button("📧 Email Yourself", use_container_width=True):
                 st.session_state.show_email_input = True
                 st.rerun()
         else:
             latest = get_latest_agent_messages()
-
             if not latest:
                 st.info("💡 Chat first — ask about workouts, nutrition, or request a **full fitness package**!")
-
             email_input = st.text_input("Enter your email", key="email_input")
-
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📨 Send", use_container_width=True, type="primary"):
@@ -211,19 +250,20 @@ else:
                     elif not latest:
                         st.warning("Have a conversation first!")
                     else:
-                        body = build_email_body(latest, st.session_state.username)
-                        # calls email_agent.send() from EmailAgent class
-                        ok, msg = st.session_state.agent.email_agent.send(
-                            email_input,
-                            "Fitness Update 🏋️",
-                            body
-                        )
-                        if ok:
-                            st.success("🎉 Sent! Check your inbox.")
-                            st.session_state.show_email_input = False
-                            st.rerun()
-                        else:
-                            st.error(f"Failed: {msg}")
+                        with st.spinner("Sending..."):
+                            try:
+                                body = build_email_body(latest, st.session_state.username)
+                                ok, msg = st.session_state.agent.email_agent.send(
+                                    email_input, "Fitness Update 🏋️", body
+                                )
+                                if ok:
+                                    st.success("🎉 Sent! Check your inbox.")
+                                    st.session_state.show_email_input = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ Failed: {msg}")
+                            except Exception as e:
+                                st.error(f"❌ Email error: {e}\n\n```\n{traceback.format_exc()}\n```")
             with col2:
                 if st.button("Cancel", use_container_width=True):
                     st.session_state.show_email_input = False
@@ -234,8 +274,8 @@ else:
             st.session_state.messages = []
             st.session_state.agent = AgentRouter(db_client=db)
             st.rerun()
-                                                                      
-   # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
+
+    # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
     st.markdown('<div class="app-title">Fitness AI Agent</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">Your personalized multi-agent assistant.</div>', unsafe_allow_html=True)
 
@@ -256,8 +296,6 @@ else:
                 route = message["agent_route"]
                 extra = "plan-badge" if route == "plan" else ""
                 st.markdown(f'<div class="agent-badge {extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-            
-            # --- DEBATE UI RENDERER ---
             if isinstance(message["content"], dict) and "final_plan" in message["content"]:
                 content = message["content"]
                 with st.expander("🔍 See how the agents debated this plan"):
@@ -266,38 +304,30 @@ else:
                     c1.info(f"**💪 Workout:**\n{content['round1']['workout']}")
                     c2.success(f"**🥗 Nutrition:**\n{content['round1']['nutrition']}")
                     c3.warning(f"**🛌 Recovery:**\n{content['round1']['recovery']}")
-                    
                     st.markdown("**Round 2: Cross-Critique**")
                     c4, c5, c6 = st.columns(3)
                     c4.info(f"**💪 Workout argues:**\n{content['round2']['workout']}")
                     c5.success(f"**🥗 Nutrition argues:**\n{content['round2']['nutrition']}")
                     c6.warning(f"**🛌 Recovery argues:**\n{content['round2']['recovery']}")
-                
                 st.markdown(content["final_plan"])
             else:
                 st.markdown(message["content"])
 
     if prompt := st.chat_input("Ask me anything about fitness..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-
         with st.chat_message("user"):
             st.markdown(prompt)
-
         with st.chat_message("assistant"):
             with st.spinner("Consulting the agents..."):
                 try:
-                    reply, route = st.session_state.agent.run(prompt) 
-                    
+                    reply, route = st.session_state.agent.run(prompt)
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": reply,
                         "agent_route": route
                     })
-                    
                     route_extra = "plan-badge" if route == "plan" else ""
                     st.markdown(f'<div class="agent-badge {route_extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-                    
-                    # --- DEBATE UI RENDERER (For new messages) ---
                     if isinstance(reply, dict) and "final_plan" in reply:
                         with st.expander("🔍 See how the agents debated this plan"):
                             st.markdown("**Round 1: Initial Proposals**")
@@ -305,20 +335,17 @@ else:
                             c1.info(f"**💪 Workout:**\n{reply['round1']['workout']}")
                             c2.success(f"**🥗 Nutrition:**\n{reply['round1']['nutrition']}")
                             c3.warning(f"**🛌 Recovery:**\n{reply['round1']['recovery']}")
-                            
                             st.markdown("**Round 2: Cross-Critique**")
                             c4, c5, c6 = st.columns(3)
                             c4.info(f"**💪 Workout argues:**\n{reply['round2']['workout']}")
                             c5.success(f"**🥗 Nutrition argues:**\n{reply['round2']['nutrition']}")
                             c6.warning(f"**🛌 Recovery argues:**\n{reply['round2']['recovery']}")
-                        
                         st.markdown(reply["final_plan"])
                     else:
                         st.markdown(reply)
-                        
                 except Exception as e:
                     error_msg = str(e).lower()
                     if "429" in error_msg or "exhausted" in error_msg or "quota" in error_msg:
                         st.warning("⏳ API speed limit reached. Please wait 60 seconds and try again.")
                     else:
-                        st.error(f"API Error: {e}")
+                        st.error(f"❌ Agent error: {e}\n\n```\n{traceback.format_exc()}\n```")
