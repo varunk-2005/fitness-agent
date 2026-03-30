@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from google import genai
 load_dotenv()
 class NutritionAgent:
-    def __init__(self):
+    def __init__(self, db_client): 
+        self.db_client = db_client
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"

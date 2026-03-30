@@ -204,7 +204,7 @@ else:
             st.session_state.agent = AgentRouter()
             st.rerun()
                                                               # ← sidebar closes here
-    # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
+   # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
     st.markdown('<div class="app-title">Fitness AI Agent</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">Your personalized multi-agent assistant.</div>', unsafe_allow_html=True)
 
@@ -225,7 +225,26 @@ else:
                 route = message["agent_route"]
                 extra = "plan-badge" if route == "plan" else ""
                 st.markdown(f'<div class="agent-badge {extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-            st.markdown(message["content"])
+            
+            # --- DEBATE UI RENDERER ---
+            if isinstance(message["content"], dict) and "final_plan" in message["content"]:
+                content = message["content"]
+                with st.expander("🔍 See how the agents debated this plan"):
+                    st.markdown("**Round 1: Initial Proposals**")
+                    c1, c2, c3 = st.columns(3)
+                    c1.info(f"**💪 Workout:**\n{content['round1']['workout']}")
+                    c2.success(f"**🥗 Nutrition:**\n{content['round1']['nutrition']}")
+                    c3.warning(f"**🛌 Recovery:**\n{content['round1']['recovery']}")
+                    
+                    st.markdown("**Round 2: Cross-Critique**")
+                    c4, c5, c6 = st.columns(3)
+                    c4.info(f"**💪 Workout argues:**\n{content['round2']['workout']}")
+                    c5.success(f"**🥗 Nutrition argues:**\n{content['round2']['nutrition']}")
+                    c6.warning(f"**🛌 Recovery argues:**\n{content['round2']['recovery']}")
+                
+                st.markdown(content["final_plan"])
+            else:
+                st.markdown(message["content"])
 
     if prompt := st.chat_input("Ask me anything about fitness..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -236,15 +255,37 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Consulting the agents..."):
                 try:
-                    reply, route = st.session_state.agent.run(prompt)
+                    # Remember to pass the username to the router!
+                    reply, route = st.session_state.agent.run(prompt) 
+                    
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": reply,
                         "agent_route": route
                     })
+                    
                     route_extra = "plan-badge" if route == "plan" else ""
                     st.markdown(f'<div class="agent-badge {route_extra}">{route_display.get(route, "🤖 General")}</div>', unsafe_allow_html=True)
-                    st.markdown(reply)
+                    
+                    # --- DEBATE UI RENDERER (For new messages) ---
+                    if isinstance(reply, dict) and "final_plan" in reply:
+                        with st.expander("🔍 See how the agents debated this plan"):
+                            st.markdown("**Round 1: Initial Proposals**")
+                            c1, c2, c3 = st.columns(3)
+                            c1.info(f"**💪 Workout:**\n{reply['round1']['workout']}")
+                            c2.success(f"**🥗 Nutrition:**\n{reply['round1']['nutrition']}")
+                            c3.warning(f"**🛌 Recovery:**\n{reply['round1']['recovery']}")
+                            
+                            st.markdown("**Round 2: Cross-Critique**")
+                            c4, c5, c6 = st.columns(3)
+                            c4.info(f"**💪 Workout argues:**\n{reply['round2']['workout']}")
+                            c5.success(f"**🥗 Nutrition argues:**\n{reply['round2']['nutrition']}")
+                            c6.warning(f"**🛌 Recovery argues:**\n{reply['round2']['recovery']}")
+                        
+                        st.markdown(reply["final_plan"])
+                    else:
+                        st.markdown(reply)
+                        
                 except Exception as e:
                     error_msg = str(e).lower()
                     if "429" in error_msg or "exhausted" in error_msg or "quota" in error_msg:
