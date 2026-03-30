@@ -175,6 +175,14 @@ else:
             st.rerun()
 
         st.divider()
+        st.subheader("👤 Your Profile")
+        st.info("Your details help personalize the plans.", icon="💡")
+        st.selectbox("Your Goal", ["Lose Weight", "Build Muscle", "Stay Fit", "Improve Endurance"], key="profile_goal")
+        st.number_input("Age", min_value=16, max_value=100, value=30, key="profile_age")
+        st.number_input("Height (cm)", min_value=100, max_value=250, value=170, key="profile_height")
+        st.number_input("Weight (kg)", min_value=30, max_value=200, value=70, key="profile_weight")
+        
+        st.divider()
         st.markdown("""<div class="info-card"><h2 style="margin-top:0;">🏋️ Fitness AI Agent</h2><p style="margin-bottom:0; opacity:0.8;">Your personal multi-agent fitness assistant.</p></div>""", unsafe_allow_html=True)
         st.divider()
 
@@ -265,7 +273,13 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Consulting the agents..."):
                 try:
-                    reply, route = st.session_state.agent.run(prompt)
+                    profile_text = (
+                        f"User Profile: Goal={st.session_state.profile_goal}, "
+                        f"Age={st.session_state.profile_age}, "
+                        f"Height={st.session_state.profile_height}cm, "
+                        f"Weight={st.session_state.profile_weight}kg."
+                    )
+                    reply, route = st.session_state.agent.run(prompt, profile_text)
                     st.session_state.messages.append({
                         "role": "assistant", "content": reply, "agent_route": route})
                     route_extra = "plan-badge" if route == "plan" else ""

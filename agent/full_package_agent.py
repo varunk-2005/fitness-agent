@@ -37,17 +37,17 @@ class FullPackageAgent:
         # 1. Ask Workout Agent, then PAUSE
         print("🏋️‍♂️ Workout Agent is building the exercise routine...")
         workout_plan = self.workout_agent.run(query)
-        time.sleep(3) # ⬅️ 3-second breather to protect your API limit
+        time.sleep(5) # ⬅️ 5-second breather to protect your API limit
         
         # 2. Ask Nutrition Agent, then PAUSE
         print("🥗 Nutrition Agent is calculating macros and meals...")
         nutrition_plan = self.nutrition_agent.run(query)
-        time.sleep(3) 
+        time.sleep(5) 
         
         # 3. Ask Recovery Agent, then PAUSE
         print("🛌 Recovery Agent is designing the rest protocol...")
         recovery_plan = self.recovery_agent.run(query)
-        time.sleep(3)
+        time.sleep(5)
         
         print("🗣️ Head Coach: 'Great work team, I'm reviewing your plans for conflicts now...'")
         

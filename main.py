@@ -3,6 +3,7 @@ from agent.workout import WorkoutAgent
 from agent.nutrition import NutritionAgent
 from agent.recovery import RecoveryAgent
 from agent.general import GeneralAgent
+import time
 from agent.email_agent import EmailAgent
 from agent.full_package_agent import FullPackageAgent # ⬅️ Replaced PlannerAgent
 
@@ -25,14 +26,10 @@ class AgentRouter:
         )
 
     def set_username(self, username):
-        """Helper to let app.py easily pass the logged-in user to all agents"""
-        self.workout_agent.username = username
-        self.nutrition_agent.username = username
-        self.recovery_agent.username = username
-        self.full_package_agent.username = username
+        """Helper to let app.py easily pass the logged-in user to the email agent"""
         self.email_agent.username = username
 
-    def run(self, user_input):
+    def run(self, user_input, profile_text=None):
         # 1. Route the initial query
         category = self.router.run(user_input)
 
@@ -56,19 +53,23 @@ class AgentRouter:
                 return reply, "general"
 
         # 3. Now we have a definitive, non-general category. Run the specialist agent.
+        # Construct the full input with profile for the specialist agents.
+        full_input = f"{profile_text}\n\nUser Request: {user_input}" if profile_text else user_input
+        
         reply = None
         if category == "plan":
-            reply = self.full_package_agent.build_full_plan_with_debate(user_input)
+            reply = self.full_package_agent.build_full_plan_with_debate(full_input)
         elif category == "workout":
-            reply = self.workout_agent.run(user_input)
+            reply = self.workout_agent.run(full_input)
         elif category == "nutrition":
-            reply = self.nutrition_agent.run(user_input)
+            reply = self.nutrition_agent.run(full_input)
         elif category == "both":
-            workout_reply = self.workout_agent.run(user_input)
-            nutrition_reply = self.nutrition_agent.run(user_input)
+            workout_reply = self.workout_agent.run(full_input)
+            time.sleep(5) # Add a pause to avoid hitting API rate limits
+            nutrition_reply = self.nutrition_agent.run(full_input)
             reply = f"💪 **Workout:**\n{workout_reply}\n\n🥗 **Nutrition:**\n{nutrition_reply}"
         elif category == "recovery":
-            reply = self.recovery_agent.run(user_input)
+            reply = self.recovery_agent.run(full_input)
         else: # Should not happen, but as a fallback
             reply = "I seem to be stuck! Please try asking in a different way."
             category = "general"
