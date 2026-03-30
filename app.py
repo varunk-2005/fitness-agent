@@ -12,16 +12,33 @@ def init_db():
         try:
             # Attempt to load from Streamlit Secrets (Cloud)
             firebase_credentials = dict(st.secrets["firebase"])
-            
-            # Bulletproof fix: Ensure newlines in the private key are parsed correctly
-            if "\\n" in firebase_credentials.get("private_key", ""):
-                firebase_credentials["private_key"] = firebase_credentials["private_key"].replace("\\n", "\n")
-                
+
+            # Fix 1: Replace escaped \n with real newlines (TOML stores them as literals)
+            private_key = firebase_credentials.get("private_key", "")
+            if "\\n" in private_key:
+                private_key = private_key.replace("\\n", "\n")
+
+            # Fix 2: Strip any accidental whitespace/quotes around the key block
+            private_key = private_key.strip().strip('"').strip("'")
+
+            # Fix 3: Ensure the key starts and ends correctly
+            if not private_key.startswith("-----BEGIN PRIVATE KEY-----"):
+                raise ValueError("private_key does not look valid — check secrets.toml formatting")
+
+            firebase_credentials["private_key"] = private_key
             cred = credentials.Certificate(firebase_credentials)
-        except Exception:
+
+        except FileNotFoundError:
+            st.error("❌ Firebase key file not found. Add secrets or place firebase-key.json locally.")
+            st.stop()
+        except Exception as e:
             # Fallback for Local Development
-            cred = credentials.Certificate("firebase-key.json")
-            
+            try:
+                cred = credentials.Certificate("firebase-key.json")
+            except Exception as local_err:
+                st.error(f"❌ Firebase init failed.\nCloud error: {e}\nLocal error: {local_err}")
+                st.stop()
+
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
@@ -88,7 +105,7 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 if "agent" not in st.session_state:
-    st.session_state.agent = AgentRouter()
+    st.session_state.agent = AgentRouter(db_client=db)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_email_input" not in st.session_state:
@@ -212,7 +229,7 @@ else:
         st.divider()
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = []
-            st.session_state.agent = AgentRouter()
+            st.session_state.agent = AgentRouter(db_client=db)
             st.rerun()
                                                                       
    # ─── MAIN CHAT AREA ───────────────────────────────────────────────────────
