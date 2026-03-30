@@ -18,47 +18,39 @@ st.set_page_config(
 @st.cache_resource
 def init_db():
     if not firebase_admin._apps:
-        # ── Try Streamlit Cloud secrets first ──
         if "firebase" in st.secrets:
             try:
-                firebase_credentials = dict(st.secrets["firebase"])
-
-                # Ensure private_key has real newlines (TOML escapes them)
-                pk = firebase_credentials.get("private_key", "")
-                pk = pk.replace("\\n", "\n").strip().strip('"').strip("'")
-                firebase_credentials["private_key"] = pk
-
-                # Debug info shown in sidebar (remove after fixing)
-                st.session_state["_debug_pk_start"] = pk[:50]
-                st.session_state["_debug_pk_end"]   = pk[-30:]
-                st.session_state["_debug_keys"]     = list(firebase_credentials.keys())
-
+                fb = st.secrets["firebase"]
+                # Explicitly build a plain dict — never use dict() on AttrDict
+                firebase_credentials = {
+                    "type":                        str(fb["type"]),
+                    "project_id":                  str(fb["project_id"]),
+                    "private_key_id":              str(fb["private_key_id"]),
+                    "private_key":                 str(fb["private_key"]).replace("\\n", "\n"),
+                    "client_email":                str(fb["client_email"]),
+                    "client_id":                   str(fb["client_id"]),
+                    "auth_uri":                    str(fb["auth_uri"]),
+                    "token_uri":                   str(fb["token_uri"]),
+                    "auth_provider_x509_cert_url": str(fb["auth_provider_x509_cert_url"]),
+                    "client_x509_cert_url":        str(fb["client_x509_cert_url"]),
+                    "universe_domain":             str(fb.get("universe_domain", "googleapis.com")),
+                }
                 cred = credentials.Certificate(firebase_credentials)
                 firebase_admin.initialize_app(cred)
-                st.session_state["_debug_firebase"] = "✅ Initialized from Streamlit secrets"
-
             except Exception as e:
-                st.session_state["_debug_firebase"] = f"❌ Secrets failed: {e}\n{traceback.format_exc()}"
-                st.error(f"❌ Firebase (cloud secrets) failed:\n\n```\n{traceback.format_exc()}\n```")
+                st.error(f"❌ Firebase init failed:\n\n```\n{traceback.format_exc()}\n```")
                 st.stop()
-
-        # ── Fallback: local firebase-key.json ──
         else:
             try:
                 cred = credentials.Certificate("firebase-key.json")
                 firebase_admin.initialize_app(cred)
-                st.session_state["_debug_firebase"] = "✅ Initialized from local firebase-key.json"
             except Exception as e:
-                st.session_state["_debug_firebase"] = f"❌ Local key failed: {e}"
                 st.error(f"❌ Firebase (local key) failed: {e}")
                 st.stop()
 
     try:
-        client = firestore.client()
-        st.session_state["_debug_firestore"] = "✅ Firestore client created"
-        return client
+        return firestore.client()
     except Exception as e:
-        st.session_state["_debug_firestore"] = f"❌ Firestore client failed: {e}"
         st.error(f"❌ Firestore client error: {e}")
         st.stop()
 
@@ -127,7 +119,7 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 if "agent" not in st.session_state:
-    st.session_state.agent = None  # Only initialized after login
+    st.session_state.agent = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_email_input" not in st.session_state:
@@ -146,17 +138,6 @@ route_display = {
 if not st.session_state.logged_in:
     st.markdown('<div class="app-title">Welcome to Fitness AI</div>', unsafe_allow_html=True)
     st.write("Please log in or create an account to continue.")
-
-    # ── DEBUG PANEL (shows on cloud so you can see what's happening) ──
-    with st.expander("🔧 Debug Info (remove after fixing)", expanded=False):
-        st.write("**Firebase status:**", st.session_state.get("_debug_firebase", "not set"))
-        st.write("**Firestore status:**", st.session_state.get("_debug_firestore", "not set"))
-        st.write("**Secrets keys found:**", st.session_state.get("_debug_keys", "not set"))
-        st.write("**Private key start:**", st.session_state.get("_debug_pk_start", "not set"))
-        st.write("**Private key end:**", st.session_state.get("_debug_pk_end", "not set"))
-        st.write("**firebase in secrets:**", "firebase" in st.secrets)
-        if "firebase" in st.secrets:
-            st.write("**secret keys:**", list(st.secrets["firebase"].keys()))
 
     tab1, tab2 = st.tabs(["🔒 Login", "📝 Sign Up"])
 
