@@ -279,7 +279,15 @@ else:
                         f"Height={st.session_state.profile_height}cm, "
                         f"Weight={st.session_state.profile_weight}kg."
                     )
-                    reply, route = st.session_state.agent.run(prompt, profile_text)
+                    
+                    try:
+                        reply, route = st.session_state.agent.run(prompt, profile_text)
+                    except TypeError:
+                        # If an old agent is stuck in session state, seamlessly recreate it
+                        st.session_state.agent = make_agent()
+                        st.session_state.agent.set_username(st.session_state.username)
+                        reply, route = st.session_state.agent.run(prompt, profile_text)
+                        
                     st.session_state.messages.append({
                         "role": "assistant", "content": reply, "agent_route": route})
                     route_extra = "plan-badge" if route == "plan" else ""
