@@ -48,6 +48,9 @@ Keep total response under 280 words. Show the numbers — they matter.
 """
         print("NutritionAgent created!")
 
+    def reset(self):
+        self.memory = []
+
     @property
     def client(self):
         if not hasattr(self, "_client"):
