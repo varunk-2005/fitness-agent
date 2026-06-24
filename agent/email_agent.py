@@ -29,7 +29,7 @@ class EmailAgent:
             msg['Subject'] = subject
             msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
-            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
             server.starttls()
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
@@ -39,5 +39,7 @@ class EmailAgent:
 
         except smtplib.SMTPAuthenticationError:
             return False, "Google blocked the login. Make sure you are using a 16-letter App Password, not your normal Gmail password."
+        except (TimeoutError, OSError) as e:
+            return False, f"Couldn't reach Gmail's SMTP server within 10s — likely blocked by the host. Raw error: {e}"
         except Exception as e:
             return False, f"Server error: {str(e)}"
