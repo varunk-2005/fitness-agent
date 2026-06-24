@@ -8,23 +8,28 @@ from agent.email_agent import EmailAgent
 from agent.full_package_agent import FullPackageAgent
 
 
-def _run_with_retry(fn, *args, retries=2, delay=5, **kwargs):
-    """
-    Call fn(*args, **kwargs). On a Gemini 429 / RESOURCE_EXHAUSTED error,
-    wait `delay` seconds and retry up to `retries` times.
-    All other exceptions propagate immediately.
-    """
-    for attempt in range(retries + 1):
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            err = str(e)
-            is_rate_limit = "429" in err or "RESOURCE_EXHAUSTED" in err
-            if is_rate_limit and attempt < retries:
-                print(f"Rate limit hit — retrying in {delay}s (attempt {attempt + 1}/{retries})...")
-                time.sleep(delay)
-            else:
-                raise
+def _run_with_retry(fn, *args, retries=4, delay=3, **kwargs):
+     """
+     Call fn(*args, **kwargs). On a Gemini transient error — 429/RESOURCE_EXHAUSTED
+     (rate limit) or 503/UNAVAILABLE (model overloaded) — wait and retry with
+     exponential backoff, up to `retries` times.
+     All other exceptions propagate immediately.
+     """
+     for attempt in range(retries + 1):
+         try:
+             return fn(*args, **kwargs)
+         except Exception as e:
+             err = str(e)
+             is_rate_limit = "429" in err or "RESOURCE_EXHAUSTED" in err
+             is_overloaded = "503" in err or "UNAVAILABLE" in err
+             is_transient = is_rate_limit or is_overloaded
+             if is_transient and attempt < retries:
+                 wait = delay * (2 ** attempt)  # 3s, 6s, 12s, 24s...
+                 reason = "Rate limit" if is_rate_limit else "Model overloaded"
+                 print(f"{reason} — retrying in {wait}s (attempt {attempt + 1}/{retries})...")
+                 time.sleep(wait)
+             else:
+               raise
 
 
 class AgentRouter:
