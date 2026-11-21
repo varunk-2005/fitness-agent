@@ -30,8 +30,8 @@ class FullPackageAgent:
     @property
     def client(self):
         if not hasattr(self, "_client"):
-            from agent.config import get_gemini_api_key
-            self._client = genai.Client(api_key=get_gemini_api_key())
+            from agent.config import make_client
+            self._client = make_client()
         return self._client
 
 
