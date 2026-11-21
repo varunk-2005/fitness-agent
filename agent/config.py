@@ -26,3 +26,10 @@ def get_email_credentials():
     except Exception:
         pass
     return os.getenv("GMAIL_USER"), os.getenv("GMAIL_APP_PASSWORD")
+    def make_client():
+    from google import genai
+    from google.genai import types
+    return genai.Client(
+        api_key=get_gemini_api_key(),
+        http_options=types.HttpOptions(api_version="v1beta"),
+    )
